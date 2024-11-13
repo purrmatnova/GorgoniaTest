@@ -39,7 +39,7 @@ var (
 )
 
 func main() {
-	dataDir := "C:/Users/MiPro/Desktop/GorgoniaTest/smallDataset_gray"
+	dataDir := "./dataset"
 	trainImages, trainLabels, testImages, testLabels, err := CreateTensors(dataDir, 0.8)
 	if err != nil {
 		log.Fatal("Error creating slices:", err)
@@ -522,7 +522,7 @@ type convnet struct {
 func newConvNet(g *gorgonia.ExprGraph) *convnet {
 	dt := tensor.Float64
 
-	// Создание весов для слоев
+	// Веса для слоев
 	w0 := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(32, 1, 3, 3), gorgonia.WithName("w0"), gorgonia.WithInit(gorgonia.HeN(1.0))) //relu
 	w1 := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(64, 32, 3, 3), gorgonia.WithName("w1"), gorgonia.WithInit(gorgonia.HeN(1.0)))
 	w2 := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(128, 64, 3, 3), gorgonia.WithName("w2"), gorgonia.WithInit(gorgonia.HeN(1.0)))
