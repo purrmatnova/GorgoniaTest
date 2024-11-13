@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-const dim = 180
+const imageDimension = 28
 
 var classNameMap = make(map[string]int)
 var dt tensor.Dtype = tensor.Float64
@@ -34,13 +34,13 @@ func (s sli) End() int   { return s.end }
 func (s sli) Step() int  { return 1 }
 
 var (
-	epochs    = flag.Int("epochs", 2, "Number of epochs to train for")
-	batchsize = flag.Int("batchsize", 5, "Batch size")
+	epochs    = flag.Int("epochs", 1, "Number of epochs to train for")
+	batchsize = flag.Int("batchsize", 4, "Batch size")
 )
 
 func main() {
-	dataDir := "/smallDataSet"
-	trainImages, trainLabels, testImages, testLabels, err := CreateTensors(dataDir, 0.5)
+	dataDir := "C:/Users/MiPro/Desktop/GorgoniaTest/smallDataset_gray"
+	trainImages, trainLabels, testImages, testLabels, err := CreateTensors(dataDir, 0.8)
 	if err != nil {
 		log.Fatal("Error creating slices:", err)
 	}
@@ -170,10 +170,11 @@ func train(inputs, targets, test1, test2 tensor.Tensor) {
 	numTest := test1.Shape()[0]
 	bs := *batchsize
 
-	x := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(bs, 3, dim, dim), gorgonia.WithName("x"))
-	y := gorgonia.NewMatrix(g, dt, gorgonia.WithShape(bs, 5), gorgonia.WithName("y"))
-	x1 := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(bs, 3, dim, dim), gorgonia.WithName("x"))
-	y1 := gorgonia.NewMatrix(g, dt, gorgonia.WithShape(bs, 5), gorgonia.WithName("y"))
+	//[batch_size, num_channels, height, width]
+	x := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(bs, 1, imageDimension, imageDimension), gorgonia.WithName("x"))
+	y := gorgonia.NewMatrix(g, dt, gorgonia.WithShape(bs, 2), gorgonia.WithName("y"))
+	x1 := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(bs, 1, imageDimension, imageDimension), gorgonia.WithName("x"))
+	y1 := gorgonia.NewMatrix(g, dt, gorgonia.WithShape(bs, 2), gorgonia.WithName("y"))
 
 	if err := m.fwd(x); err != nil {
 		log.Fatalf("%+v", err)
@@ -234,7 +235,7 @@ func train(inputs, targets, test1, test2 tensor.Tensor) {
 				log.Fatal("Unable to slice y")
 			}
 
-			if err := xVal.(*tensor.Dense).Reshape(bs, 1, dim, dim); err != nil {
+			if err := xVal.(*tensor.Dense).Reshape(bs, 1, imageDimension, imageDimension); err != nil {
 				log.Fatalf("Unable to reshape %v", err)
 			}
 
@@ -295,7 +296,7 @@ func train(inputs, targets, test1, test2 tensor.Tensor) {
 				log.Fatal("Unable to slice y")
 			}
 
-			if err := xVal.(*tensor.Dense).Reshape(bs, 3, dim, dim); err != nil {
+			if err := xVal.(*tensor.Dense).Reshape(bs, 1, imageDimension, imageDimension); err != nil {
 				log.Fatalf("Unable to reshape %v", err)
 			}
 
@@ -323,7 +324,7 @@ func train(inputs, targets, test1, test2 tensor.Tensor) {
 		log.Fatal("Error loading and preprocessing image:", err)
 	}
 
-	x2 := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(1, 3, dim, dim), gorgonia.WithName("x"))
+	x2 := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(1, 1, imageDimension, imageDimension), gorgonia.WithName("x"))
 
 	bar2 := pb.New(1)
 	bar2.SetRefreshRate(time.Millisecond * 100)
@@ -483,7 +484,7 @@ func resizeImage(imagePath string) (*tensor.Dense, error) {
 		return nil, err
 	}
 
-	resizedImg := resize.Resize(dim, dim, img, resize.Lanczos3)
+	resizedImg := resize.Resize(imageDimension, imageDimension, img, resize.Lanczos3)
 	tensor := imageToTensor(resizedImg)
 
 	return tensor, nil
@@ -519,11 +520,15 @@ type convnet struct {
 }
 
 func newConvNet(g *gorgonia.ExprGraph) *convnet {
-	w0 := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(32, 3, 3, 3), gorgonia.WithName("w0"), gorgonia.WithInit(gorgonia.HeN(1.0)))
+	dt := tensor.Float64
+
+	// Создание весов для слоев
+	w0 := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(32, 1, 3, 3), gorgonia.WithName("w0"), gorgonia.WithInit(gorgonia.HeN(1.0))) //relu
 	w1 := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(64, 32, 3, 3), gorgonia.WithName("w1"), gorgonia.WithInit(gorgonia.HeN(1.0)))
 	w2 := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(128, 64, 3, 3), gorgonia.WithName("w2"), gorgonia.WithInit(gorgonia.HeN(1.0)))
-	w3 := gorgonia.NewMatrix(g, dt, gorgonia.WithShape(128*22*22, 625), gorgonia.WithName("w3"), gorgonia.WithInit(gorgonia.HeN(1.0)))
-	w4 := gorgonia.NewMatrix(g, dt, gorgonia.WithShape(625, 5), gorgonia.WithName("w4"), gorgonia.WithInit(gorgonia.HeN(1.0)))
+	w3 := gorgonia.NewMatrix(g, dt, gorgonia.WithShape(128*3*3, 625), gorgonia.WithName("w3"), gorgonia.WithInit(gorgonia.HeN(1.0)))
+	w4 := gorgonia.NewMatrix(g, dt, gorgonia.WithShape(625, 2), gorgonia.WithName("w4"), gorgonia.WithInit(gorgonia.HeN(1.0)))
+
 	return &convnet{
 		g:  g,
 		w0: w0,
@@ -644,11 +649,11 @@ func loadImageAndPreprocess(imagePath string) (*gorgonia.Node, error) {
 		return nil, err
 	}
 
-	resizedImg := resize.Resize(dim, dim, img, resize.Lanczos3)
+	resizedImg := resize.Resize(imageDimension, imageDimension, img, resize.Lanczos3)
 	tensor := imageToTensor(resizedImg)
 
 	g := gorgonia.NewGraph()
-	x := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(1, 3, dim, dim), gorgonia.WithName("x"))
+	x := gorgonia.NewTensor(g, dt, 4, gorgonia.WithShape(1, 1, imageDimension, imageDimension), gorgonia.WithName("x"))
 	gorgonia.Let(x, tensor)
 
 	return x, nil
